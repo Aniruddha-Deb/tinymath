@@ -15,8 +15,10 @@ int main(int argc, char** argv) {
 	fixed a = FLOAT_TO_FIXED(f1);
 	fixed b = FLOAT_TO_FIXED(f2);
 
-	printf("%s\n", fixed_to_bin_str(a));
-	printf("%s\n", fixed_to_bin_str(b));
+	printf("%s\n", fixed_to_hex_str(a));
+	char* s = fixed_to_dec_str(b);
+	printf("%s\n", s);
+	free(s);
 	printf("%s\n", fixed_to_bin_str(-a));
 	printf("%s\n", fixed_to_bin_str(-b));
 	printf("\n");
