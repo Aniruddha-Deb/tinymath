@@ -21,6 +21,7 @@ typedef int32_t fixed;
 #define FIXED_PI 0x3243F
 #define FIXED_E  0x2B7E1
 #define FIXED_SQRT2 0x16A0A
+#define FIXED_LN2 0xB172
 
 const uint64_t DEC_LOOKUP[] = { 500000000000,
 								250000000000,
@@ -185,6 +186,41 @@ fixed pow_fixed(fixed f, fixed p) {
 	}
 	return pow;
 }
+
+// works for 1<a<2
+// ln(1+x) = x - x2 (12+x)/(24+18x)
+// this one's pathetic though compared to taylor
+fixed ln_pade_fixed(fixed f) {
+	f = f-INT_TO_FIXED(1);
+	fixed f2 = mul_fixed(f,f);
+	fixed lf = f - mul_fixed(f2, div_fixed(f+INT_TO_FIXED(12),24+mul_fixed(INT_TO_FIXED(18),f)));
+	return lf;
+}
+
+// works for 1<a<2
+// not too happy with the performance here :| More terms needed, maybe?
+fixed ln_taylor_fixed(fixed f) {
+	f = f-INT_TO_FIXED(1);
+	fixed f2 = mul_fixed(f,f);
+	fixed f3 = mul_fixed(f2,f);
+	fixed f4 = mul_fixed(f3,f);
+	fixed lf = f - (mul_fixed(f,f)>>1) + div_fixed(f3,INT_TO_FIXED(3)) - (f4>>2);
+	return lf;
+}
+
+fixed ln_fast_fixed(fixed f) {
+	if (f<=0) return -INT_MAX;
+	else if (f == INT_TO_FIXED(1)) return 0;
+	else {
+		// similar to sqrt; scale and approximate
+		int div = get_scale(f)-1;
+		f = div_fixed(f,(1<<(div+16)));
+		print_fixed("f scaled is ", f);
+		fixed log = mul_fixed(INT_TO_FIXED(div),FIXED_LN2) + ln_taylor_fixed(f);
+		return log;
+	}
+}
+
 
 char get_hex_char(int i) {
 	if (i < 10) return i+48;

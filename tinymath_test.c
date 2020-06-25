@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
 	print_fixed("b = ", b);
 
 	print_fixed("sqrt(a) = ", sqrt_fast_fixed(a));
+	print_fixed("ln(a) = ", ln_fast_fixed(a));
 	print_fixed("pow(a,b) = ", pow_fixed(a,b));
 	return 0;
 }
