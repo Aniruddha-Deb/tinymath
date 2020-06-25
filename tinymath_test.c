@@ -13,44 +13,11 @@ int main(int argc, char** argv) {
 	}
 
 	fixed a = FLOAT_TO_FIXED(f1);
+	print_fixed("a = ", a);
 	fixed b = FLOAT_TO_FIXED(f2);
+	print_fixed("b = ", b);
 
-	printf("%s\n", fixed_to_hex_str(a));
-	char* s = fixed_to_dec_str(b);
-	printf("%s\n", s);
-	free(s);
-	printf("%s\n", fixed_to_bin_str(-a));
-	printf("%s\n", fixed_to_bin_str(-b));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(add_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(add_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(add_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(add_fixed(-a,-b)));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(sub_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(sub_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(sub_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(sub_fixed(-a,-b)));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(mul_fast_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(mul_fast_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(mul_fast_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(mul_fast_fixed(-a,-b)));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(mul_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(mul_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(mul_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(mul_fixed(-a,-b)));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(div_fast_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(div_fast_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(div_fast_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(div_fast_fixed(-a,-b)));
-	printf("\n");
-	printf("%s\n", fixed_to_bin_str(div_fixed(a,b)));
-	printf("%s\n", fixed_to_bin_str(div_fixed(a,-b)));
-	printf("%s\n", fixed_to_bin_str(div_fixed(-a,b)));
-	printf("%s\n", fixed_to_bin_str(div_fixed(-a,-b)));
+	print_fixed("ans = ", sqrt_fast_fixed(a));
 
 	return 0;
 }

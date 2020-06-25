@@ -4,10 +4,12 @@
 #include <inttypes.h>
 #include <math.h>
 #include <limits.h>
+#include <ctype.h>
 
 typedef int32_t fixed;
 
 #define FLOAT_TO_FIXED(N) (fixed)(N*(1<<16))
+#define FIXED_TO_FLOAT(N) (((float)N)/(1<<16))
 
 #define add_fixed(a,b) (a+b)
 #define sub_fixed(a,b) (a-b)
@@ -17,6 +19,7 @@ typedef int32_t fixed;
 
 #define FIXED_PI 0x3243F
 #define FIXED_E  0x2B7E1
+#define FIXED_SQRT2 0x16A0A
 
 const uint64_t DEC_LOOKUP[] = { 500000000000,
 								250000000000,
@@ -36,6 +39,10 @@ const uint64_t DEC_LOOKUP[] = { 500000000000,
 								15258789 };
 
 const uint64_t OVEFLOW = 1000000000000L;
+
+char* fixed_to_bin_str(fixed);
+char* fixed_to_dec_str(fixed);
+void print_fixed(char*, fixed);
 
 fixed mul_fixed(fixed a, fixed b) {
 	int sign = 1;
@@ -76,6 +83,60 @@ fixed div_fixed(fixed a, fixed b) {
 		}
 	}
 	return sign*((fixed)q);
+}
+
+int get_scale(fixed f) {
+	int scale = 15;
+	while (scale > -16) {
+		if (f&(1<<(scale+15))) return scale;
+		scale--;
+	}
+	return scale;
+}
+
+// Works only for 1<f<2
+fixed sqrt_NR_fixed(fixed f, int niter) {
+	fixed rf = (1<<16) + ((f-(1<<16))>>1);
+	for (int i=0; i<niter; i++) {
+		rf = mul_fixed(1<<15,rf+div_fixed(f,rf));
+	}
+	return rf;
+}
+
+// Works only for 1<f<2
+// very poor accuracy though; NR is better.
+fixed sqrt_taylor_fixed(fixed f) {
+	f -= (1<<16);
+	fixed f2 = mul_fixed(f, f);
+	fixed f3 = mul_fixed(f2, f);
+	fixed rf = (1<<16) + (f>>1) - (f2>>3) + (f3>>4);
+	return rf;
+}
+
+fixed sqrt_fast_fixed(fixed f) {
+	if (f == 0) return 0;
+	else if (f < 0) return -INT_MAX;
+	else if (f == (1<<16)) return 1;
+	else {
+		// sqrt(f) = sqrt(2^div) * sqrt(f/2^div);
+		// 1 < f/2^div < 2 . This allows for more precise NR estimation.
+		// Also allows creation of a lookup table for sqrt(x), 1<x<2 which further
+		// reduces time at the cost of space.
+		// 2^div is the scaling factor here
+		int div = get_scale(f)-1;
+		f = div_fixed(f,(1<<(div+16)));
+		fixed root = (1<<16);
+		if (div % 2 != 0) {
+			// odd power of 2; use sqrt(2)
+			root = FIXED_SQRT2;
+		}
+		// in C, 3/2 = 1 but (-3)/2 = -1 and not -2
+		if (div < 0) div--;
+		fixed sf_root = 1<<(16+div/2);
+		root = mul_fixed(root, sf_root);
+		root = mul_fixed(root, sqrt_NR_fixed(f, 2)); // NR for 2 iterations
+		return root;
+	}
 }
 
 char get_hex_char(int i) {
@@ -132,6 +193,7 @@ char* fixed_to_hex_str(fixed f) {
 }
 
 // Expensive to call!!!
+// TODO refactor this hacky crap
 char* fixed_to_dec_str(fixed f) {
 	int neg = 0;
 	if (f<0) {
@@ -150,24 +212,29 @@ char* fixed_to_dec_str(fixed f) {
 		}
 	}
 	// trim zeros from decpart
-	while (decpart%10 == 0 && decpart > 0) {
-		decpart /= 10;
-	}
-	int len = 3;
+	int len = 3 + 12;
 	uint16_t intpartcpy = intpart;
 	uint64_t decpartcpy = decpart;
 	while (intpartcpy > 0) {
 		len++;
 		intpartcpy /= 10;
 	}
-	while (decpartcpy > 0) {
-		len++;
-		decpartcpy /= 10;
-	}
 
 	char* str = malloc(len);
-	snprintf(str, len, " %d.%ld", intpart, decpart);
+	snprintf(str, len, " %d.%012ld", intpart, decpart);
+	// trim trailing zeros
+	for (int i=len-2; i>=0; i--) {
+		if (str[i] == '0') len--;
+		else break;
+	}
+	str[len-1] = '\0';
 	if (neg) str[0] = '-';
 	return str;
+}
+
+void print_fixed(char* prefix, fixed f) {
+	char* f_str = fixed_to_dec_str(f);
+	printf("%s%s\n", prefix, f_str);
+	free(f_str);
 }
 #endif
