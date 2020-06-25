@@ -9,6 +9,7 @@
 typedef int32_t fixed;
 
 #define FLOAT_TO_FIXED(N) (fixed)(N*(1<<16))
+#define INT_TO_FIXED(N)   (fixed)(N<<16)
 #define FIXED_TO_FLOAT(N) (((float)N)/(1<<16))
 
 #define add_fixed(a,b) (a+b)
@@ -116,7 +117,7 @@ fixed sqrt_taylor_fixed(fixed f) {
 fixed sqrt_fast_fixed(fixed f) {
 	if (f == 0) return 0;
 	else if (f < 0) return -INT_MAX;
-	else if (f == (1<<16)) return 1;
+	else if (f == (1<<16)) return (1<<16);
 	else {
 		// sqrt(f) = sqrt(2^div) * sqrt(f/2^div);
 		// 1 < f/2^div < 2 . This allows for more precise NR estimation.
@@ -137,6 +138,52 @@ fixed sqrt_fast_fixed(fixed f) {
 		root = mul_fixed(root, sqrt_NR_fixed(f, 2)); // NR for 2 iterations
 		return root;
 	}
+}
+
+fixed pow_fixed_to_int(fixed f, int p) {
+	if (p == 0) return (1<<16);
+	else if (p == 1) return f;
+	else if (p == 2) return mul_fixed(f,f);
+	if (p%2 != 0) {
+		fixed y = mul_fixed(f, pow_fixed_to_int(f,p-1));
+		return y;
+	}
+	else {
+		fixed y = pow_fixed_to_int(f,p/2);
+		return mul_fixed(y,y);
+	}
+}
+
+fixed pow_fixed_to_frac(fixed f, fixed p) {
+	fixed pow = (1<<16);
+	for (int i=15; i>=0; i--) {
+		if (p&(1<<i)) {
+			fixed temp = sqrt_fast_fixed(f);
+			for (int j=0; j<(15-i); j++) {
+				temp = sqrt_fast_fixed(temp);
+			}
+			pow = mul_fixed(pow,temp);
+		}
+	}
+	return pow;
+}
+
+fixed pow_fixed(fixed f, fixed p) {
+	int inv = 0;
+	if (p<0) {
+		inv = 1;
+		p = -p;
+	}
+	int p_int = (p>>16);
+	int p_frac = (p & ((1<<16)-1));
+	fixed pow = mul_fixed(
+						pow_fixed_to_int(f,p_int),
+						pow_fixed_to_frac(f,p_frac)
+				);
+	if (inv) {
+		return div_fixed((1<<16), pow);
+	}
+	return pow;
 }
 
 char get_hex_char(int i) {
@@ -214,7 +261,6 @@ char* fixed_to_dec_str(fixed f) {
 	// trim zeros from decpart
 	int len = 3 + 12;
 	uint16_t intpartcpy = intpart;
-	uint64_t decpartcpy = decpart;
 	while (intpartcpy > 0) {
 		len++;
 		intpartcpy /= 10;
@@ -236,5 +282,9 @@ void print_fixed(char* prefix, fixed f) {
 	char* f_str = fixed_to_dec_str(f);
 	printf("%s%s\n", prefix, f_str);
 	free(f_str);
+}
+
+void print_fixed_hex(char* prefix, fixed f) {
+	printf("%s%s\n", prefix, fixed_to_hex_str(f));
 }
 #endif
