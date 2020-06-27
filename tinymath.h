@@ -18,10 +18,14 @@ typedef int32_t fixed;
 #define div_fast_fixed(a,b) (((b>>8) != 0) ? (a<<8)/(b>>8) : \
 							(((a<<8) > 0)?INT_MAX:-INT_MAX))
 
-#define FIXED_PI 0x3243F
 #define FIXED_E  0x2B7E1
 #define FIXED_SQRT2 0x16A0A
 #define FIXED_LN2 0xB172
+
+#define FIXED_PI 0x3243F
+#define FIXED_PIBY2 0x19220
+#define FIXED_3PIBY2 0x4B65F
+#define FIXED_2PI 0x6487F
 
 const uint64_t DEC_LOOKUP[] = { 500000000000,
 								250000000000,
@@ -188,7 +192,7 @@ fixed pow_fixed(fixed f, fixed p) {
 }
 
 // works for 1<a<2
-// ln(1+x) = x - x2 (12+x)/(24+18x)
+// ln(1+x) = x - x^2 (12+x)/(24+18x)
 // this one's pathetic though compared to taylor
 fixed ln_pade_fixed(fixed f) {
 	f = f-INT_TO_FIXED(1);
@@ -204,7 +208,7 @@ fixed ln_taylor_fixed(fixed f) {
 	fixed f2 = mul_fixed(f,f);
 	fixed f3 = mul_fixed(f2,f);
 	fixed f4 = mul_fixed(f3,f);
-	fixed lf = f - (mul_fixed(f,f)>>1) + div_fixed(f3,INT_TO_FIXED(3)) - (f4>>2);
+	fixed lf = f - (f2>>1) + div_fixed(f3,INT_TO_FIXED(3)) - (f4>>2);
 	return lf;
 }
 
@@ -215,12 +219,66 @@ fixed ln_fast_fixed(fixed f) {
 		// similar to sqrt; scale and approximate
 		int div = get_scale(f)-1;
 		f = div_fixed(f,(1<<(div+16)));
-		print_fixed("f scaled is ", f);
 		fixed log = mul_fixed(INT_TO_FIXED(div),FIXED_LN2) + ln_taylor_fixed(f);
 		return log;
 	}
 }
 
+// TODO find a more efficient algorithm for this
+fixed exp_fast_fixed(fixed f) {
+	return pow_fixed(FIXED_E, f);
+}
+
+fixed sin_fixed(fixed f) {
+	if (f>0 && f<FIXED_PIBY2) {
+		fixed f3 = mul_fixed(mul_fixed(f,f),f);
+		fixed f5 = mul_fixed(mul_fixed(f3,f),f);
+		fixed f7 = mul_fixed(mul_fixed(f5,f),f);
+		return f - div_fixed(f3,INT_TO_FIXED(6)) + div_fixed(f5,INT_TO_FIXED(120)) - div_fixed(f7,INT_TO_FIXED(5040));
+	}
+	else if(f>FIXED_PIBY2 && f<FIXED_PI) {
+		return sin_fixed(FIXED_PI-f);
+	}
+	else if(f>FIXED_PI && f<FIXED_3PIBY2) {
+		return -sin_fixed(f-FIXED_PI);
+	}
+	else if(f>FIXED_3PIBY2 && f<FIXED_2PI) {
+		return -sin_fixed(FIXED_2PI-f);
+	}
+	else {
+		// TODO optimize this
+		while (!(f>0 && f<FIXED_2PI)) {
+			if (f>FIXED_2PI) {
+				f -= FIXED_2PI;
+			}
+			else if (f<0) {
+				f += FIXED_2PI;
+			}
+		}
+		return sin_fixed(f);
+	}
+	return 0;
+}
+
+fixed cos_fixed(fixed f) {
+	return sin_fixed(FIXED_PIBY2-f);
+}  
+
+fixed tan_fixed(fixed f) {
+	return div_fixed(sin_fixed(f), cos_fixed(f));
+}
+
+fixed cosec_fixed(fixed f) {
+	return div_fixed(INT_TO_FIXED(1), sin_fixed(f));
+}
+
+fixed sec_fixed(fixed f) {
+	return div_fixed(INT_TO_FIXED(1), cos_fixed(f));
+}
+
+fixed cot_fixed(fixed f) {
+	return div_fixed(cos_fixed(f), sin_fixed(f));
+}
 
 char get_hex_char(int i) {
 	if (i < 10) return i+48;

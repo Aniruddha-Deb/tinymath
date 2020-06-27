@@ -3,7 +3,7 @@
 #include "../tinymath.h"
 
 int main(int argc, char** argv) {
-	float f1 = 6;
+	float f1 = 0.57;
 	float f2 = 4;
 	if (argc > 1) {
 		f1 = atof(argv[1]);
@@ -19,6 +19,8 @@ int main(int argc, char** argv) {
 
 	print_fixed("sqrt(a) = ", sqrt_fast_fixed(a));
 	print_fixed("ln(a) = ", ln_fast_fixed(a));
+	print_fixed("exp(a) = ", exp_fast_fixed(a));
+	print_fixed("sin(a) = ", sin_fixed(a));
 	print_fixed("pow(a,b) = ", pow_fixed(a,b));
 	return 0;
 }
