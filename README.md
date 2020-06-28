@@ -4,12 +4,12 @@ A fixed-point math library, especially for AVR microcontrollers.
 current version: v.0.1
 
 In Progress:
-- write test cases for different classes of functions
+- Write test cases for different classes of functions
 
 Pipeline:
-- inverse trig functions (arcsin, arccos, arctan)
-- optimize exp, sin functions
-- documentation
+- Inverse trig functions (arcsin, arccos, arctan)
+- Optimize exp, sin functions
+- Documentation
 
 Done:
 - Basic fixed point impl

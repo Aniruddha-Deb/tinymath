@@ -5,12 +5,15 @@
 #include <math.h>
 #include <limits.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 typedef int32_t fixed;
 
-#define FLOAT_TO_FIXED(N) (fixed)(N*(1<<16))
-#define INT_TO_FIXED(N)   (fixed)(N<<16)
-#define FIXED_TO_FLOAT(N) (((float)N)/(1<<16))
+#define FIXED_1 0x10000
+
+#define FLOAT_TO_FIX(N) (fixed)(N*FIXED_1)
+#define INT_TO_FIX(N)   (fixed)(N<<16)
+#define FIX_TO_FLOAT(N) (((float)N)/FIXED_1)
 
 #define add_fixed(a,b) (a+b)
 #define sub_fixed(a,b) (a-b)
@@ -44,7 +47,7 @@ const uint64_t DEC_LOOKUP[] = { 500000000000,
 								30517578,
 								15258789 };
 
-const uint64_t OVEFLOW = 1000000000000L;
+const uint64_t OVERFLOW = 1000000000000L;
 
 char* fixed_to_bin_str(fixed);
 char* fixed_to_dec_str(fixed);
@@ -102,9 +105,9 @@ int get_scale(fixed f) {
 
 // Works only for 1<f<2
 fixed sqrt_NR_fixed(fixed f, int niter) {
-	fixed rf = (1<<16) + ((f-(1<<16))>>1);
+	fixed rf = FIXED_1 + ((f-FIXED_1)>>1);
 	for (int i=0; i<niter; i++) {
-		rf = mul_fixed(1<<15,rf+div_fixed(f,rf));
+		rf = mul_fixed(INT_TO_FIX(2),rf+div_fixed(f,rf));
 	}
 	return rf;
 }
@@ -112,17 +115,17 @@ fixed sqrt_NR_fixed(fixed f, int niter) {
 // Works only for 1<f<2
 // very poor accuracy though; NR is better.
 fixed sqrt_taylor_fixed(fixed f) {
-	f -= (1<<16);
+	f -= FIXED_1;
 	fixed f2 = mul_fixed(f, f);
 	fixed f3 = mul_fixed(f2, f);
-	fixed rf = (1<<16) + (f>>1) - (f2>>3) + (f3>>4);
+	fixed rf = FIXED_1 + (f>>1) - (f2>>3) + (f3>>4);
 	return rf;
 }
 
 fixed sqrt_fast_fixed(fixed f) {
 	if (f == 0) return 0;
 	else if (f < 0) return -INT_MAX;
-	else if (f == (1<<16)) return (1<<16);
+	else if (f == FIXED_1) return FIXED_1;
 	else {
 		// sqrt(f) = sqrt(2^div) * sqrt(f/2^div);
 		// 1 < f/2^div < 2 . This allows for more precise NR estimation.
@@ -131,7 +134,7 @@ fixed sqrt_fast_fixed(fixed f) {
 		// 2^div is the scaling factor here
 		int div = get_scale(f)-1;
 		f = div_fixed(f,(1<<(div+16)));
-		fixed root = (1<<16);
+		fixed root = FIXED_1;
 		if (div % 2 != 0) {
 			// odd power of 2; use sqrt(2)
 			root = FIXED_SQRT2;
@@ -146,7 +149,7 @@ fixed sqrt_fast_fixed(fixed f) {
 }
 
 fixed pow_fixed_to_int(fixed f, int p) {
-	if (p == 0) return (1<<16);
+	if (p == 0) return FIXED_1;
 	else if (p == 1) return f;
 	else if (p == 2) return mul_fixed(f,f);
 	if (p%2 != 0) {
@@ -160,7 +163,7 @@ fixed pow_fixed_to_int(fixed f, int p) {
 }
 
 fixed pow_fixed_to_frac(fixed f, fixed p) {
-	fixed pow = (1<<16);
+	fixed pow = FIXED_1;
 	for (int i=15; i>=0; i--) {
 		if (p&(1<<i)) {
 			fixed temp = sqrt_fast_fixed(f);
@@ -180,13 +183,13 @@ fixed pow_fixed(fixed f, fixed p) {
 		p = -p;
 	}
 	int p_int = (p>>16);
-	int p_frac = (p & ((1<<16)-1));
+	int p_frac = (p & (FIXED_1-1));
 	fixed pow = mul_fixed(
 						pow_fixed_to_int(f,p_int),
 						pow_fixed_to_frac(f,p_frac)
 				);
 	if (inv) {
-		return div_fixed((1<<16), pow);
+		return div_fixed(FIXED_1, pow);
 	}
 	return pow;
 }
@@ -195,31 +198,31 @@ fixed pow_fixed(fixed f, fixed p) {
 // ln(1+x) = x - x^2 (12+x)/(24+18x)
 // this one's pathetic though compared to taylor
 fixed ln_pade_fixed(fixed f) {
-	f = f-INT_TO_FIXED(1);
+	f -= FIXED_1;
 	fixed f2 = mul_fixed(f,f);
-	fixed lf = f - mul_fixed(f2, div_fixed(f+INT_TO_FIXED(12),24+mul_fixed(INT_TO_FIXED(18),f)));
+	fixed lf = f - mul_fixed(f2, div_fixed(f+INT_TO_FIX(12),24+mul_fixed(INT_TO_FIX(18),f)));
 	return lf;
 }
 
 // works for 1<a<2
 // not too happy with the performance here :| More terms needed, maybe?
 fixed ln_taylor_fixed(fixed f) {
-	f = f-INT_TO_FIXED(1);
+	f -= FIXED_1;
 	fixed f2 = mul_fixed(f,f);
 	fixed f3 = mul_fixed(f2,f);
 	fixed f4 = mul_fixed(f3,f);
-	fixed lf = f - (f2>>1) + div_fixed(f3,INT_TO_FIXED(3)) - (f4>>2);
+	fixed lf = f - (f2>>1) + div_fixed(f3,INT_TO_FIX(3)) - (f4>>2);
 	return lf;
 }
 
 fixed ln_fast_fixed(fixed f) {
 	if (f<=0) return -INT_MAX;
-	else if (f == INT_TO_FIXED(1)) return 0;
+	else if (f == FIXED_1) return 0;
 	else {
 		// similar to sqrt; scale and approximate
 		int div = get_scale(f)-1;
 		f = div_fixed(f,(1<<(div+16)));
-		fixed log = mul_fixed(INT_TO_FIXED(div),FIXED_LN2) + ln_taylor_fixed(f);
+		fixed log = mul_fixed(INT_TO_FIX(div),FIXED_LN2) + ln_taylor_fixed(f);
 		return log;
 	}
 }
@@ -234,7 +237,8 @@ fixed sin_fixed(fixed f) {
 		fixed f3 = mul_fixed(mul_fixed(f,f),f);
 		fixed f5 = mul_fixed(mul_fixed(f3,f),f);
 		fixed f7 = mul_fixed(mul_fixed(f5,f),f);
-		return f - div_fixed(f3,INT_TO_FIXED(6)) + div_fixed(f5,INT_TO_FIXED(120)) - div_fixed(f7,INT_TO_FIXED(5040));
+		return f - div_fixed(f3,INT_TO_FIX(6)) + 
+			   div_fixed(f5,INT_TO_FIX(120)) - div_fixed(f7,INT_TO_FIX(5040));
 	}
 	else if(f>FIXED_PIBY2 && f<FIXED_PI) {
 		return sin_fixed(FIXED_PI-f);
@@ -269,11 +273,11 @@ fixed tan_fixed(fixed f) {
 }
 
 fixed cosec_fixed(fixed f) {
-	return div_fixed(INT_TO_FIXED(1), sin_fixed(f));
+	return div_fixed(FIXED_1, sin_fixed(f));
 }
 
 fixed sec_fixed(fixed f) {
-	return div_fixed(INT_TO_FIXED(1), cos_fixed(f));
+	return div_fixed(FIXED_1, cos_fixed(f));
 }
 
 fixed cot_fixed(fixed f) {
@@ -347,9 +351,9 @@ char* fixed_to_dec_str(fixed f) {
 		if ((f & (1 << i))) {
 			decpart += DEC_LOOKUP[15-i];
 		}
-		if (decpart > OVEFLOW) {
+		if (decpart > OVERFLOW) {
 			intpart++;
-			decpart -= OVEFLOW;
+			decpart -= OVERFLOW;
 		}
 	}
 	// trim zeros from decpart
