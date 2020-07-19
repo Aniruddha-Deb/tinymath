@@ -1,5 +1,5 @@
 # TinyMath
-A fixed-point math library, especially for AVR microcontrollers.
+A fixed-point math library implemented in C
 
 current version: v.0.1
 
