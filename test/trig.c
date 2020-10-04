@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <../tinymath.h>
+#include "../tinymath.h"
 
 int sin_test() {
 	return 0;
